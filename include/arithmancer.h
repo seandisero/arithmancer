@@ -1,6 +1,7 @@
 #include "token.h"
 #include "stack.h"
 #include "queue.h"
+#include "globals.h"
 
 #ifndef ARITHMANCER_H
 #define ARITHMANCER_H
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 int tokenize(Queue* q, char* in);
 int should_move_operator(Stack* os, Token* t);

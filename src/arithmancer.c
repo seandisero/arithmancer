@@ -1,47 +1,53 @@
 #include "../include/arithmancer.h"
 
 int tokenize(Queue*q, char* in) {
+	assert(q != NULL);
+	assert(in != NULL);
 	int current = 0;
-	char str[64];
+	char strnum[TOKEN_BUFFER_SIZE];
 	int i;
-	while (in[current] != '\0'){
+	int success;
+	while (in[current] != '\0' && current < MAX_SIZE){
 		i = 0;
 		Token t;
-		while(in[current] == ' '|| in[current] == '\n') {
+		if(in[current] == ' ' || in[current] == '\n') {
 			current++;
 			continue;
 		}
 		if(is_num(in[current]) == 1){
-			while(is_num(in[current]) == 1){
-				str[i] = in[current];
+			while(is_num(in[current]) == 1 && current < MAX_SIZE && i < TOKEN_BUFFER_SIZE){
+				strnum[i] = in[current];
 				current++;
 				i++;
 			}
-			str[i] = '\0';
-			double f = atof(str);
+			strnum[i] = '\0';
+			double f = atof(strnum);
 			t.type = TOKEN_NUMBER;
 			t.value.number = f;
-			queue_push(q, &t);
+			success = queue_push(q, &t);
+			assert(success == 0);
 			continue;
 		}
 		if(is_operator(in[current]) == 1) {
-			str[i] = in[current];
 			t.type = TOKEN_OPERATOR;
 			t.value.op = char_to_operator(in[current]);
 			current++;
-			queue_push(q, &t);
+			success = queue_push(q, &t);
+			assert(success == 0);
 			continue;
 		}
 		if(in[current] == '('){
-			t.type = TOKEN_LEFT_BRAKET;
+			t.type = TOKEN_LEFT_BRACKET;
 			current++;
-			queue_push(q, &t);
+			success = queue_push(q, &t);
+			assert(success == 0);
 			continue;
 		}
 		if(in[current] == ')'){
-			t.type = TOKEN_RIGHT_BRAKET;
+			t.type = TOKEN_RIGHT_BRACKET;
 			current++;
-			queue_push(q, &t);
+			success = queue_push(q, &t);
+			assert(success == 0);
 			continue;
 		}
 	}
@@ -50,66 +56,98 @@ int tokenize(Queue*q, char* in) {
 
 
 int should_move_operator(Stack* os, Token* t){
-	if(t->type == TOKEN_NUMBER) {return -1;}
+	assert(os != NULL);
+	assert(t != NULL);
+	if(t->type == TOKEN_NUMBER) {return 0;}
 	if(stack_empty(os) == 1) return 0;
 
 	Token* peek = stack_peek(os);
-	int peek_pr = operator_precidence(peek->value.op);
-	int t_pr = operator_precidence(t->value.op);
+	assert(peek != NULL);
+	int peek_pr = operator_precedence(peek->value.op);
+	int t_pr = operator_precedence(t->value.op);
 	int t_left_ass = operator_left_associative(t->value.op);
 
-	return (peek->type != TOKEN_LEFT_BRAKET &&
+	return (peek->type != TOKEN_LEFT_BRACKET &&
 	(peek_pr > t_pr || (t_pr == peek_pr && t_left_ass)));
 }
 
 int shunting_yard(Queue* token_queue, Queue* out_queue, Stack* operator_stack){
-	for(int i = 0; queue_empty(token_queue) != 1; i++){
+	assert(token_queue != NULL);
+	assert(out_queue != NULL);
+	assert(operator_stack != NULL);
+	for(int i = 0; queue_empty(token_queue) != 1 && i < MAX_SIZE; i++){
+		int success;
 		Token* t = queue_pull(token_queue);
+		assert(t != NULL);
 		if(t->type == TOKEN_NUMBER){
-			queue_push(out_queue, t);
+			success = queue_push(out_queue, t);
+			assert(success == 0);
 		}
 		else if (t->type == TOKEN_OPERATOR){
 			while (should_move_operator(operator_stack, t) == 1){
-				queue_push(out_queue, stack_pop(operator_stack));
+				success = queue_push(out_queue, stack_pop(operator_stack));
+				assert(success == 0);
 			}
-			stack_push(operator_stack, t);
+			success =stack_push(operator_stack, t);
+			assert(success == 0);
 		}
-		else if(t->type == TOKEN_LEFT_BRAKET){
-			stack_push(operator_stack, t);
+		else if(t->type == TOKEN_LEFT_BRACKET){
+			success =stack_push(operator_stack, t);
+			assert(success == 0);
 		}
-		else if(t->type == TOKEN_RIGHT_BRAKET){
-			while (stack_peek(operator_stack)->type != TOKEN_LEFT_BRAKET){
-				if(stack_empty(operator_stack) == 1){
-					return -1;
+		else if(t->type == TOKEN_RIGHT_BRACKET){
+			while (stack_empty(operator_stack) != 1){
+				Token* next_token = stack_peek(operator_stack);
+				assert(next_token != NULL);
+				if(next_token != NULL && next_token->type == TOKEN_LEFT_BRACKET) {
+					break;
 				}
-				queue_push(out_queue, stack_pop(operator_stack));
+				next_token = stack_pop(operator_stack);
+				assert(next_token != NULL);
+				success = queue_push(out_queue, next_token);
+				assert(success == 0);
 			}
-			Token* discard = stack_pop(operator_stack);
+			success = stack_pop_discard(operator_stack);
+			assert(success == 0);
 		}
 	}
 	while (stack_empty(operator_stack) != 1){
-		queue_push(out_queue, stack_pop(operator_stack));
+		int success = queue_push(out_queue, stack_pop(operator_stack));
+		assert(success == 0);
 	}
 	return 0;
 }
 
 int calculate(Queue* out_queue, Stack* a_stack){
+	assert(out_queue != NULL);
+	assert(a_stack != NULL);
 	while(queue_empty(out_queue) != 1){
 		Token* t = queue_pull(out_queue);
+		assert(t != NULL);
 		if(t->type == TOKEN_NUMBER){
-			stack_push(a_stack, t);
+			int success = stack_push(a_stack, t);
+			assert(success == 0);
 		}
 		else if(t->type == TOKEN_OPERATOR){
 			Token result;
 			result.type = TOKEN_NUMBER;
 			Token* b = stack_pop(a_stack);
+			assert(b != NULL);
+			if(b == NULL) { return 1; }
 			Token* a = stack_pop(a_stack);
+			assert(a != NULL);
+			if(a == NULL) { return 1; }
 			if (t->value.op== ADD){result.value.number = a->value.number + b->value.number;}
 			if (t->value.op== SUB){result.value.number = a->value.number - b->value.number;}
 			if (t->value.op== MUL){result.value.number = a->value.number * b->value.number;}
-			if (t->value.op== DIV){result.value.number = a->value.number / b->value.number;}
+			if (t->value.op== DIV){
+				assert(b->value.number != 0.0);
+				if(b->value.number == 0.0){ return -1;}
+				result.value.number = a->value.number / b->value.number;
+			}
 			if (t->value.op== POW){result.value.number = pow(a->value.number, b->value.number);}
-			stack_push(a_stack, &result);
+			int success = stack_push(a_stack, &result);
+			assert(success == 0);
 		}
 	}
 	return 0;
@@ -122,26 +160,35 @@ int run(){
 	Stack operator_stack;
 	Stack a_stack;
 
-	printf("sizeof(Token) = %zu bytes\n", sizeof(Token));
-	printf("sizeof(TokenType) = %zu bytes\n", sizeof(TokenType));
-	printf("sizeof(TokenValue) = %zu bytes\n", sizeof(TokenValue));
-	printf("sizeof(Queue) = %zu bytes\n", sizeof(token_queue));
-	printf("sizeof(Stack) = %zu bytes\n", sizeof(operator_stack));
-
-
 	while(1){
 		int success = queue_init(&token_queue);
+		assert(success == 0);
 		success = queue_init(&out_queue);
+		assert(success == 0);
 		success = stack_init(&operator_stack);
+		assert(success == 0);
 		success = stack_init(&a_stack);
+		assert(success == 0);
 		printf("> ");
 		fgets(input, sizeof(input), stdin);
-		if(strcmp(input, "q") == 0){break;}
+		if(strcmp(input, "q\n") == 0){break;}
 
 		// char* in = "3.14159 * ( 5.5 + 12.9 )";
 		success = tokenize(&token_queue, input);
+		if(success != 0) {
+			printf("an error occurred tokenizing input\n"); 
+			continue;
+		}
 		success = shunting_yard(&token_queue, &out_queue, &operator_stack);
+		if(success != 0) {
+			printf("an error occurred during shunting yard\n"); 
+			continue;
+		}
 		success = calculate(&out_queue, &a_stack);
+		if(success != 0) {
+			printf("an error occurred during calculation\n"); 
+			continue;
+		}
 		printf("%f\n\n", a_stack.tokens[0].value.number);
 	}
 	return 0;
